@@ -30,6 +30,11 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
+import org.firstinspires.ftc.robotcore.external.tfod.TFObjectDetector;
+import org.firstinspires.ftc.robotcore.external.ClassFactory;
+import org.firstinspires.ftc.robotcore.external.tfod.Recognition;
+import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DcMotorController;
 import java.util.Set;
@@ -39,6 +44,8 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DigitalChannel;
+
 
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
@@ -50,7 +57,12 @@ import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
 import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 import org.firstinspires.ftc.robotcore.external.navigation.Position;
 import org.firstinspires.ftc.robotcore.external.navigation.Velocity;
+import java.util.List;
 
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer.CameraDirection;
+import org.firstinspires.ftc.robotcore.external.tfod.TFObjectDetector;
+import org.firstinspires.ftc.robotcore.external.tfod.Recognition;
 
 /**
  * This file contains an minimal example of a Linear "OpMode". An OpMode is a 'program' that runs in either
@@ -64,17 +76,40 @@ import org.firstinspires.ftc.robotcore.external.navigation.Velocity;
  * Use Android Studios to Copy this Class, and Paste it into your team's code folder with a new name.
  * Remove or comment out the @Disabled line to add this opmode to the Driver Station OpMode list
  */
-@Autonomous(name="DDtest", group="Linear Opmode")
+@Autonomous(name="PositionR", group="Linear Opmode")
 
-public class DDtest extends LinearOpMode {
+public class PositionR extends LinearOpMode {
 
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
     private DcMotor leftDrive = null;
     private DcMotor rightDrive = null;
     private DcMotor topDrive = null;
-    private Servo   arm      = null;
+    
+    DigitalChannel hook_stop = null;  // Hardware Device Object
+    private DcMotor hook = null;
+    private Servo hook_lock = null;
+    private Servo mascot_launcher = null;
+    
+    private static final String TFOD_MODEL_ASSET = "RoverRuckus.tflite";
+    private static final String LABEL_GOLD_MINERAL = "Gold Mineral";
+    private static final String LABEL_SILVER_MINERAL = "Silver Mineral";
+    
+    private static final String VUFORIA_KEY = "AZJZ75//////AAABmdAmg40cSEDOrErUXX2lSa2JCItbFqAqd6UYVKvTVWjcw+/gkmtxHQMZL8SwMFpnTmjAzusU1xDqqetDO1iL9KZb0JwlvnurrYtpwJoCx3JyQ+sTQWOcyDA9ciN7KPYizT5idlIpPX+RqwWsNGSSLVMAlWY4Rn1JXojxV5wEAjrpG2lVAKmF2p6nXrpIGJ+FI8HyQjN81Dy3gNIL9crNwZdCQUps6S57KCXETjC1PELLHAWIt3nyYWYgfHo0UNZGzcrKc/0LBw3qDrsXNbDFZiiz29zBkweDjjAkdbYtyii+dHeS6nIk0yopIGqq1YRGxKtK4r4E9Id6jLnqNruNFgChZ1HpfqzMEGBFGL6lDY4q";
 
+    /**
+     * {@link #vuforia} is the variable we will use to store our instance of the Vuforia
+     * localization engine.
+     */
+    private VuforiaLocalizer vuforia;
+
+    /**
+     * {@link #tfod} is the variable we will use to store our instance of the Tensor Flow Object
+     * Detection engine.
+     */
+    private TFObjectDetector tfod;
+
+        
     BNO055IMU               imu;
     double                  gTheta; // direction to keep IMU facing during GoDir calls
    
@@ -89,49 +124,90 @@ public class DDtest extends LinearOpMode {
     }
     
     
-        void FirstMotion (int initPos,double scale,double power){
-        if(initPos==1)
-        {
-            MoveTimed(power, 0, 4.*scale, true);
-            sleep(500);
-            telemetry.addData("arm", arm.getPosition()); 
-            telemetry.update();
-        }
-        else if(initPos==2)
-        {
-            MoveTimed(power, 0, 1.2*scale, true);
-            sleep(500);
-             MoveTimed(power, 45, 3*scale, true);
-            sleep(500);
-             MoveTimed(power, 135, 4*scale, true);
-            sleep(500);
-            
-            
-            
-        }
-        if(arm.getPosition()<.5)
-        {
-            arm.setPosition(1.0);
-        }
-        else
-        {
-            arm.setPosition(0.0);
-        }
-        sleep(5000);
-        telemetry.update();
+    void FirstMotion (int initPos,double scale,double power)
+    {
+        LowerSelf();
         
-        if(initPos==1)
-        {
-        MoveTimed(power, -90, 3.5*scale, false);
-        sleep(500);   
-        }
-        else if(initPos==2)
-        {
-        MoveTimed(power, 0, 3.5*scale, false);
-        sleep(500); 
-        }
-        }
+        MoveTimed(power, -90, 0.75*scale, true);
+        sleep(100);
+        
+       MoveTimed(power, 150, 0.5*scale, true);
+        
+       TurnTo( -60, 0.25);
        
+        //MoveTimed(power, -90, 3.5*scale, false);
+        sleep(500);
+        
+        MoveTimed(power, 30, 0.5*scale, true);
+        int loc = FindGold();
+        telemetry.addData("loc", loc);
+       telemetry.update();
+        
+        if (loc == 1) {
+            gTheta = -60;
+            MoveTimed(power, 120, 4.1*scale, false);
+            TurnTo( -120, 0.25);
+            MoveTimed(power, 90, 2.1*scale, true);
+            TurnTo( 60, 0.25);
+            MoveTimed(power,-60, 3.0*scale, true);
+            mascot_launcher.setPosition(0.0);
+            sleep(2000);
+            mascot_launcher.setPosition(1.0);
+            
+            
+        }
+          if (loc == 2) {
+            gTheta = -60;
+            MoveTimed(power, 82, 3.1*scale, false);
+            TurnTo( -60, 0.25);
+            MoveTimed(power, 90, 2.5*scale, true);
+            TurnTo( 40, 0.25);
+            //MoveTimed(power,-60, 3.0*scale, true);
+            mascot_launcher.setPosition(0.0);
+            sleep(2000);
+            mascot_launcher.setPosition(1.0);
+            
+            
+        }
+         if (loc == 3) {
+            gTheta = -70;
+            MoveTimed(power, 60, 3.1*scale, false);
+            TurnTo( 30, 0.25);
+            MoveTimed(power, 70, 2.5*scale, true);
+            TurnTo( 30, 0.25);
+            //MoveTimed(power,-60, 3.0*scale, true);
+            TurnTo(90, 0.25);
+            mascot_launcher.setPosition(0.0);
+            sleep(2000);
+            mascot_launcher.setPosition(1.0);
+            
+            
+        }
+        telemetry.addData("loc", loc);
+       telemetry.update();
+        
+        
+    }
+     
+    void LowerSelf()
+    {
+         
+        // releqase hook lock
+        hook.setPower(-0.4);
+        hook_lock.setPosition(0.7);
+        sleep(200);    
+        
+        // Lower robot
+        hook.setPower(-0.05);
+        sleep(2300);
+        hook.setPower(0.0);
+        
+        // Raise hook slightly
+        hook.setPower(0.15);
+        sleep(100);
+        hook.setPower(0.0);
+
+       }
     
 
     void GoDir( double power, double theta_degrees ){
@@ -216,9 +292,15 @@ public class DDtest extends LinearOpMode {
         leftDrive  = hardwareMap.get(DcMotor.class, "left");
         rightDrive = hardwareMap.get(DcMotor.class, "right");
         topDrive   = hardwareMap.get(DcMotor.class, "pot");
-        arm        = hardwareMap.get(Servo.class, "arm");
-        // Most robots need the motor on one side to be reversed to drive forward
-        // Reverse the motor that runs backwards when connected directly to the battery
+        //arm        = hardwareMap.get(Servo.class, "arm");
+        
+        hook_stop = hardwareMap.get(DigitalChannel.class, "hook_stop");
+        hook  = hardwareMap.get(DcMotor.class, "hook");
+        hook_lock  = hardwareMap.get(Servo.class, "hook_lock");
+        mascot_launcher  = hardwareMap.get(Servo.class, "mascot_launcher");
+        
+         hook_stop.setMode(DigitalChannel.Mode.INPUT);
+
         leftDrive.setDirection(DcMotor.Direction.FORWARD);
         rightDrive.setDirection(DcMotor.Direction.FORWARD);
         topDrive.setDirection(DcMotor.Direction.FORWARD);
@@ -251,28 +333,58 @@ public class DDtest extends LinearOpMode {
         telemetry.addData("Status", "waiting for start");
         telemetry.addData("imu calib status", imu.getCalibrationStatus().toString());
         telemetry.update();
+        //Remove lock
+        hook_lock.setPosition(0.25);
+        sleep(1500);
+        
+        double t_start = getRuntime();
+        while( hook_stop.getState() == true ){
+        
+            double t_diff = getRuntime() - t_start;
+        
+            if( t_diff > 3 ) break; // only activate motor for 3 seconds max
+            hook.setPower(-0.25);
+        }
+        hook.setPower(0.0);
+        
+        hook_lock.setPosition(0.0);
+        sleep(500);
+        //hook_lock.setPosition(0.5);
+        //sleep(500);
+        //hook_lock.setPosition(0.0);
+        //sleep(500);
+        
+        //small motion to cease rest on the lock
+        t_start = getRuntime();
+        hook.setPower(0.40);
+        sleep(300);
+        hook.setPower(0.0);
+        
+        // The TFObjectDetector uses the camera frames from the VuforiaLocalizer, so we create that
+        // first.
+        initVuforia();
+
+        if (ClassFactory.getInstance().canCreateTFObjectDetector()) {
+            initTfod();
+        } else {
+            telemetry.addData("Sorry!", "This device is not compatible with TFOD");
+        }
+
 
         // Wait for the game to start (driver presses PLAY)
         waitForStart();
         runtime.reset(); 
+        
     }
     
     @Override
     public void runOpMode() {
-       int numWheels=3;
-       if(numWheels==3)
-       {
-        TriRobotInit();
-       }
-       else if(numWheels==4)
-       {
-           //QuadRobotInit();
-       }
        
+       TriRobotInit();
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
-            int initPos=2;
-            double scale=.25;
+            int initPos=1;
+            double scale=1;
             double power = 0.5;
             gTheta = 0.0;
             //GoSq(power);
@@ -280,4 +392,87 @@ public class DDtest extends LinearOpMode {
             break;
         }
     }
+            
+    private void initVuforia() {
+        /*
+         * Configure Vuforia by creating a Parameter object, and passing it to the Vuforia engine.
+         */
+        VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters();
+
+        parameters.vuforiaLicenseKey = VUFORIA_KEY;
+        parameters.cameraDirection = CameraDirection.BACK;
+
+        //  Instantiate the Vuforia engine
+        vuforia = ClassFactory.getInstance().createVuforia(parameters);
+
+        // Loading trackables is not necessary for the Tensor Flow Object Detection engine.
+    }
+
+    /**
+     * Initialize the Tensor Flow Object Detection engine.
+     */
+    private void initTfod() {
+        int tfodMonitorViewId = hardwareMap.appContext.getResources().getIdentifier(
+            "tfodMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+        TFObjectDetector.Parameters tfodParameters = new TFObjectDetector.Parameters(tfodMonitorViewId);
+        tfod = ClassFactory.getInstance().createTFObjectDetector(tfodParameters, vuforia);
+        tfod.loadModelFromAsset(TFOD_MODEL_ASSET, LABEL_GOLD_MINERAL, LABEL_SILVER_MINERAL);
+    }
+     private int FindGold2() {
+        return 3;}
+    private int FindGold() {
+
+          if (tfod != null) {
+                tfod.activate();
+            }
+            
+            int pos = 3;
+            
+            double t_start =  getRuntime();
+
+            while (opModeIsActive()) {
+                
+                if( (getRuntime() - t_start ) > 3.5) break;
+                
+                if (tfod != null) {
+                    // getUpdatedRecognitions() will return null if no new information is available since
+                    // the last time that call was made.
+                    List<Recognition> updatedRecognitions = tfod.getUpdatedRecognitions();
+                    if (updatedRecognitions != null) {
+                      telemetry.addData("# Object Detected", updatedRecognitions.size());
+                      //if (updatedRecognitions.size() == 3) {
+                        int goldMineralX = -1;
+                        int silverMineral1X = -1;
+                        int silverMineral2X = -1;
+                        for (Recognition recognition : updatedRecognitions) {
+                          if (recognition.getLabel().equals(LABEL_GOLD_MINERAL)) {
+                            goldMineralX = (int) recognition.getLeft();
+                              if(goldMineralX<70) {
+                                  pos = 1;
+                              }else if(goldMineralX<100){
+                                  pos = 2;
+                              }else{
+                                  pos = 3;
+                              }
+                             telemetry.addData("gold position", goldMineralX);
+                              telemetry.addData("loc", pos);
+                             telemetry.update();
+                             tfod.shutdown();
+                             return pos;
+                             //break;
+                           } 
+                        }
+                      //}
+                    }
+                }
+            }
+
+
+        if (tfod != null) {
+            tfod.shutdown();
+        }
+        return pos;
+    }
+    
 }
+

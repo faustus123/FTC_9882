@@ -30,6 +30,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DcMotorController;
 import java.util.Set;
@@ -39,6 +40,8 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DigitalChannel;
+
 
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
@@ -64,9 +67,9 @@ import org.firstinspires.ftc.robotcore.external.navigation.Velocity;
  * Use Android Studios to Copy this Class, and Paste it into your team's code folder with a new name.
  * Remove or comment out the @Disabled line to add this opmode to the Driver Station OpMode list
  */
-@Autonomous(name="DDtest", group="Linear Opmode")
+@Autonomous(name="PositionL", group="Linear Opmode")
 
-public class DDtest extends LinearOpMode {
+public class PositionL extends LinearOpMode {
 
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
@@ -74,6 +77,8 @@ public class DDtest extends LinearOpMode {
     private DcMotor rightDrive = null;
     private DcMotor topDrive = null;
     private Servo   arm      = null;
+    private DigitalChannel digitalTouchT=null;
+    private DigitalChannel digitalTouchB=null;
 
     BNO055IMU               imu;
     double                  gTheta; // direction to keep IMU facing during GoDir calls
@@ -90,6 +95,8 @@ public class DDtest extends LinearOpMode {
     
     
         void FirstMotion (int initPos,double scale,double power){
+        LowerSelf();
+        
         if(initPos==1)
         {
             MoveTimed(power, 0, 4.*scale, true);
@@ -131,7 +138,12 @@ public class DDtest extends LinearOpMode {
         sleep(500); 
         }
         }
-       
+       void LowerSelf(){
+           //extend arm 
+           //drive R 4in
+           //retract Arm 
+           
+       }
     
 
     void GoDir( double power, double theta_degrees ){
@@ -217,6 +229,19 @@ public class DDtest extends LinearOpMode {
         rightDrive = hardwareMap.get(DcMotor.class, "right");
         topDrive   = hardwareMap.get(DcMotor.class, "pot");
         arm        = hardwareMap.get(Servo.class, "arm");
+        
+         // get a reference to our digitalTouch object.
+        digitalTouchB = hardwareMap.get(DigitalChannel.class, "hook_stopB");
+
+        // set the digital channel to input.
+        digitalTouchB.setMode(DigitalChannel.Mode.INPUT);
+        
+        digitalTouchT = hardwareMap.get(DigitalChannel.class, "hook_stopT");
+
+        // set the digital channel to input.
+        digitalTouchT.setMode(DigitalChannel.Mode.INPUT);
+
+        
         // Most robots need the motor on one side to be reversed to drive forward
         // Reverse the motor that runs backwards when connected directly to the battery
         leftDrive.setDirection(DcMotor.Direction.FORWARD);
@@ -259,20 +284,12 @@ public class DDtest extends LinearOpMode {
     
     @Override
     public void runOpMode() {
-       int numWheels=3;
-       if(numWheels==3)
-       {
-        TriRobotInit();
-       }
-       else if(numWheels==4)
-       {
-           //QuadRobotInit();
-       }
        
+       TriRobotInit();
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
             int initPos=2;
-            double scale=.25;
+            double scale=1;
             double power = 0.5;
             gTheta = 0.0;
             //GoSq(power);
