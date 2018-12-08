@@ -30,6 +30,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.ServoImplEx;
 import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
 import org.firstinspires.ftc.robotcore.external.tfod.TFObjectDetector;
 import org.firstinspires.ftc.robotcore.external.ClassFactory;
@@ -153,7 +154,7 @@ public class PositionR extends LinearOpMode {
             mascot_launcher.setPosition(0.0);
             sleep(2000);
             mascot_launcher.setPosition(1.0);
-            
+            sleep(2000);
             
         }
           if (loc == 2) {
@@ -161,12 +162,12 @@ public class PositionR extends LinearOpMode {
             MoveTimed(power, 82, 3.1*scale, false);
             TurnTo( -60, 0.25);
             MoveTimed(power, 90, 2.5*scale, true);
-            TurnTo( 40, 0.25);
-            //MoveTimed(power,-60, 3.0*scale, true);
+            TurnTo( 30, 0.25);
+            MoveTimed(power, 30, 1.5*scale, true);
             mascot_launcher.setPosition(0.0);
             sleep(2000);
             mascot_launcher.setPosition(1.0);
-            
+            sleep(2000);
             
         }
          if (loc == 3) {
@@ -180,7 +181,7 @@ public class PositionR extends LinearOpMode {
             mascot_launcher.setPosition(0.0);
             sleep(2000);
             mascot_launcher.setPosition(1.0);
-            
+            sleep(2000);
             
         }
         telemetry.addData("loc", loc);
@@ -271,7 +272,7 @@ public class PositionR extends LinearOpMode {
            if (delta_theta < -180) delta_theta += 360;
             if (delta_theta > 180) delta_theta -= 360;
             double P = power * gain * delta_theta;
-            if( Math.abs( P ) < 0.08 ) break;
+            if( Math.abs( P ) < 0.1 ) break;
             topDrive.setPower( P );
             leftDrive.setPower( P );
             rightDrive.setPower( P );
@@ -343,7 +344,7 @@ public class PositionR extends LinearOpMode {
             double t_diff = getRuntime() - t_start;
         
             if( t_diff > 3 ) break; // only activate motor for 3 seconds max
-            hook.setPower(-0.25);
+            hook.setPower(-0.3);
         }
         hook.setPower(0.0);
         
@@ -360,6 +361,17 @@ public class PositionR extends LinearOpMode {
         sleep(300);
         hook.setPower(0.0);
         
+        mascot_launcher.setPosition(0.8);
+        sleep(2000);
+        mascot_launcher.setPosition(1.0);
+        sleep(1000);
+    
+        // Disable servo PWMs to save power
+        ServoImplEx mascotex = hardwareMap.get(ServoImplEx.class, "mascot_launcher");
+        ServoImplEx lockex   = hardwareMap.get(ServoImplEx.class, "hook_lock");
+        mascotex.setPwmDisable();
+        lockex.setPwmDisable();
+           
         // The TFObjectDetector uses the camera frames from the VuforiaLocalizer, so we create that
         // first.
         initVuforia();
@@ -427,19 +439,20 @@ public class PositionR extends LinearOpMode {
             }
             
             int pos = 3;
-            
+            int Npos2=0;
+            int Npos3=0;
             double t_start =  getRuntime();
 
             while (opModeIsActive()) {
                 
                 if( (getRuntime() - t_start ) > 3.5) break;
-                
+                if (Npos2>=5 || Npos3>=5)break;
                 if (tfod != null) {
                     // getUpdatedRecognitions() will return null if no new information is available since
                     // the last time that call was made.
                     List<Recognition> updatedRecognitions = tfod.getUpdatedRecognitions();
                     if (updatedRecognitions != null) {
-                      telemetry.addData("# Object Detected", updatedRecognitions.size());
+                      //telemetry.addData("# Object Detected", updatedRecognitions.size());
                       //if (updatedRecognitions.size() == 3) {
                         int goldMineralX = -1;
                         int silverMineral1X = -1;
@@ -447,22 +460,21 @@ public class PositionR extends LinearOpMode {
                         for (Recognition recognition : updatedRecognitions) {
                           if (recognition.getLabel().equals(LABEL_GOLD_MINERAL)) {
                             goldMineralX = (int) recognition.getLeft();
-                              if(goldMineralX<70) {
-                                  pos = 1;
-                              }else if(goldMineralX<100){
-                                  pos = 2;
-                              }else{
-                                  pos = 3;
+                              if(goldMineralX>600) {
+                                  Npos3++;
+                              }else if(goldMineralX>300){
+                                  Npos2++;
                               }
                              telemetry.addData("gold position", goldMineralX);
                               telemetry.addData("loc", pos);
                              telemetry.update();
-                             tfod.shutdown();
-                             return pos;
+                            // sleep(3000);
+                             //tfod.shutdown();
+                            // return pos;
                              //break;
                            } 
                         }
-                      //}
+                      
                     }
                 }
             }
@@ -471,7 +483,9 @@ public class PositionR extends LinearOpMode {
         if (tfod != null) {
             tfod.shutdown();
         }
-        return pos;
+        if (Npos2>=5)return 2;
+        if (Npos3>=5)return 3;
+        return 1;
     }
     
 }
