@@ -129,7 +129,7 @@ public class PositionR extends LinearOpMode {
     {
         LowerSelf();
         
-        MoveTimed(power, -90, 0.75*scale, true);
+        MoveTimed(power, -90, 1.0*scale, true);
         sleep(100);
         
        MoveTimed(power, 150, 0.5*scale, true);
@@ -150,11 +150,11 @@ public class PositionR extends LinearOpMode {
             TurnTo( -120, 0.25);
             MoveTimed(power, 90, 2.1*scale, true);
             TurnTo( 60, 0.25);
-            MoveTimed(power,-60, 3.0*scale, true);
+            MoveTimed(power,-60, 3.1*scale, true);
             mascot_launcher.setPosition(0.0);
             sleep(2000);
             mascot_launcher.setPosition(1.0);
-            sleep(2000);
+            
             
         }
           if (loc == 2) {
@@ -167,7 +167,7 @@ public class PositionR extends LinearOpMode {
             mascot_launcher.setPosition(0.0);
             sleep(2000);
             mascot_launcher.setPosition(1.0);
-            sleep(2000);
+            
             
         }
          if (loc == 3) {
@@ -181,7 +181,7 @@ public class PositionR extends LinearOpMode {
             mascot_launcher.setPosition(0.0);
             sleep(2000);
             mascot_launcher.setPosition(1.0);
-            sleep(2000);
+            
             
         }
         telemetry.addData("loc", loc);
@@ -335,7 +335,7 @@ public class PositionR extends LinearOpMode {
         telemetry.addData("imu calib status", imu.getCalibrationStatus().toString());
         telemetry.update();
         //Remove lock
-        hook_lock.setPosition(0.25);
+        hook_lock.setPosition(0.5);
         sleep(1500);
         
         double t_start = getRuntime();
@@ -374,17 +374,18 @@ public class PositionR extends LinearOpMode {
            
         // The TFObjectDetector uses the camera frames from the VuforiaLocalizer, so we create that
         // first.
-        initVuforia();
-
-        if (ClassFactory.getInstance().canCreateTFObjectDetector()) {
-            initTfod();
-        } else {
-            telemetry.addData("Sorry!", "This device is not compatible with TFOD");
-        }
+        
 
 
         // Wait for the game to start (driver presses PLAY)
         waitForStart();
+        //initVuforia();
+
+        if (ClassFactory.getInstance().canCreateTFObjectDetector()) {
+         //   initTfod();
+        } else {
+            telemetry.addData("Sorry!", "This device is not compatible with TFOD");
+        }
         runtime.reset(); 
         
     }
@@ -405,10 +406,21 @@ public class PositionR extends LinearOpMode {
         }
     }
             
-    private void initVuforia() {
+     private int FindGold2(){return 3;}
+
+     private int FindGold() {
+        
         /*
          * Configure Vuforia by creating a Parameter object, and passing it to the Vuforia engine.
          */
+     VuforiaLocalizer vuforia;
+
+    /**
+     * {@link #tfod} is the variable we will use to store our instance of the Tensor Flow Object
+     * Detection engine.
+     */
+    TFObjectDetector tfod;
+    
         VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters();
 
         parameters.vuforiaLicenseKey = VUFORIA_KEY;
@@ -418,35 +430,39 @@ public class PositionR extends LinearOpMode {
         vuforia = ClassFactory.getInstance().createVuforia(parameters);
 
         // Loading trackables is not necessary for the Tensor Flow Object Detection engine.
-    }
+    
 
     /**
      * Initialize the Tensor Flow Object Detection engine.
      */
-    private void initTfod() {
-        int tfodMonitorViewId = hardwareMap.appContext.getResources().getIdentifier(
+      if (ClassFactory.getInstance().canCreateTFObjectDetector()) {
+       int tfodMonitorViewId = hardwareMap.appContext.getResources().getIdentifier(
             "tfodMonitorViewId", "id", hardwareMap.appContext.getPackageName());
         TFObjectDetector.Parameters tfodParameters = new TFObjectDetector.Parameters(tfodMonitorViewId);
         tfod = ClassFactory.getInstance().createTFObjectDetector(tfodParameters, vuforia);
         tfod.loadModelFromAsset(TFOD_MODEL_ASSET, LABEL_GOLD_MINERAL, LABEL_SILVER_MINERAL);
-    }
-     private int FindGold2() {
-        return 3;}
-    private int FindGold() {
+        tfod.activate();
+        } else {
+            telemetry.addData("Sorry!", "This device is not compatible with TFOD");
+            return 3;
+        }
 
-          if (tfod != null) {
-                tfod.activate();
-            }
-            
-            int pos = 3;
-            int Npos2=0;
+             int Npos1=0;
+           int Npos2=0;
             int Npos3=0;
+             int NposSilver1=0;
+           int NposSilver2=0;
+            int NposSilver3=0;
             double t_start =  getRuntime();
 
-            while (opModeIsActive()) {
+
+     while (opModeIsActive()) {
                 
                 if( (getRuntime() - t_start ) > 3.5) break;
-                if (Npos2>=5 || Npos3>=5)break;
+                if (Npos1 >=5 || Npos2>=5 || Npos3>=5)break;
+                if (NposSilver1>=5 && NposSilver2>=5)break;
+                if (NposSilver2>=5 && NposSilver3>=5)break;
+                if (NposSilver1>=5 && NposSilver3>=5)break;
                 if (tfod != null) {
                     // getUpdatedRecognitions() will return null if no new information is available since
                     // the last time that call was made.
@@ -455,26 +471,39 @@ public class PositionR extends LinearOpMode {
                       //telemetry.addData("# Object Detected", updatedRecognitions.size());
                       //if (updatedRecognitions.size() == 3) {
                         int goldMineralX = -1;
-                        int silverMineral1X = -1;
-                        int silverMineral2X = -1;
-                        for (Recognition recognition : updatedRecognitions) {
-                          if (recognition.getLabel().equals(LABEL_GOLD_MINERAL)) {
+                        int silverMineralX = -1;
+                         for (Recognition recognition : updatedRecognitions) {
+                            if (recognition.getLabel().equals(LABEL_GOLD_MINERAL)) {
                             goldMineralX = (int) recognition.getLeft();
-                              if(goldMineralX>600) {
-                                  Npos3++;
-                              }else if(goldMineralX>300){
+                            telemetry.addData("gold position", goldMineralX);
+                              if(goldMineralX<300) {
+                                  Npos1++;
+                                telemetry.addData("loc", 1);
+                              }else if(goldMineralX<800){
                                   Npos2++;
+                                  telemetry.addData("loc", 2);
+                              }else{
+                                  Npos3++;
+                                  telemetry.addData("loc", 3);
                               }
-                             telemetry.addData("gold position", goldMineralX);
-                              telemetry.addData("loc", pos);
-                             telemetry.update();
-                            // sleep(3000);
-                             //tfod.shutdown();
-                            // return pos;
-                             //break;
+                           } 
+                        
+                            if (recognition.getLabel().equals(LABEL_SILVER_MINERAL)) {
+                            silverMineralX = (int) recognition.getLeft();
+                            telemetry.addData("silver position", silverMineralX);
+                              if(silverMineralX<300) {
+                                  NposSilver1++;
+                                telemetry.addData("loc", 1);
+                              }else if(silverMineralX<300){
+                                  NposSilver2++;
+                                  telemetry.addData("loc", 2);
+                              }else{
+                                  NposSilver3++;
+                                  telemetry.addData("loc", 3);
+                              }
                            } 
                         }
-                      
+                        telemetry.update();
                     }
                 }
             }
@@ -483,10 +512,21 @@ public class PositionR extends LinearOpMode {
         if (tfod != null) {
             tfod.shutdown();
         }
+        
+        
+        
+        telemetry.addData("", 2);
+        
+        if (Npos1>=5)return 1;
         if (Npos2>=5)return 2;
         if (Npos3>=5)return 3;
-        return 1;
+        if (NposSilver1>=5 && NposSilver2>=5)return 3;
+        if (NposSilver2>=5 && NposSilver3>=5)return 1;             
+        if (NposSilver1>=5 && NposSilver3>=5)return 2;
+
+        return 3;
     }
     
 }
+
 

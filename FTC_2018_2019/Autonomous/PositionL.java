@@ -15,6 +15,23 @@
  * promote products derived from this software without specific prior written permission.
  *
  * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY THIS
+ * LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS/* Copyright (c) 2017 FIRST. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted (subject to the limitations in the disclaimer below) provided that
+ * the following conditions are met:
+ *
+ * Redistributions of source code must retain the above copyright notice, this list
+ * of conditions and the following disclaimer.
+ *
+ * Redistributions in binary form must reproduce the above copyright notice, this
+ * list of conditions and the following disclaimer in the documentation and/or
+ * other materials provided with the distribution.
+ *
+ * Neither the name of FIRST nor the names of its contributors may be used to endorse or
+ * promote products derived from this software without specific prior written permission.
+ *
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY THIS
  * LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,6 +47,11 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.ServoImplEx;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
+import org.firstinspires.ftc.robotcore.external.tfod.TFObjectDetector;
+import org.firstinspires.ftc.robotcore.external.ClassFactory;
+import org.firstinspires.ftc.robotcore.external.tfod.Recognition;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DcMotorController;
@@ -53,7 +75,12 @@ import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
 import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 import org.firstinspires.ftc.robotcore.external.navigation.Position;
 import org.firstinspires.ftc.robotcore.external.navigation.Velocity;
+import java.util.List;
 
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer.CameraDirection;
+import org.firstinspires.ftc.robotcore.external.tfod.TFObjectDetector;
+import org.firstinspires.ftc.robotcore.external.tfod.Recognition;
 
 /**
  * This file contains an minimal example of a Linear "OpMode". An OpMode is a 'program' that runs in either
@@ -76,10 +103,31 @@ public class PositionL extends LinearOpMode {
     private DcMotor leftDrive = null;
     private DcMotor rightDrive = null;
     private DcMotor topDrive = null;
-    private Servo   arm      = null;
-    private DigitalChannel digitalTouchT=null;
-    private DigitalChannel digitalTouchB=null;
+    
+    DigitalChannel hook_stop = null;  // Hardware Device Object
+    private DcMotor hook = null;
+    private Servo hook_lock = null;
+    private Servo mascot_launcher = null;
+    
+    private static final String TFOD_MODEL_ASSET = "RoverRuckus.tflite";
+    private static final String LABEL_GOLD_MINERAL = "Gold Mineral";
+    private static final String LABEL_SILVER_MINERAL = "Silver Mineral";
+    
+    private static final String VUFORIA_KEY = "AZJZ75//////AAABmdAmg40cSEDOrErUXX2lSa2JCItbFqAqd6UYVKvTVWjcw+/gkmtxHQMZL8SwMFpnTmjAzusU1xDqqetDO1iL9KZb0JwlvnurrYtpwJoCx3JyQ+sTQWOcyDA9ciN7KPYizT5idlIpPX+RqwWsNGSSLVMAlWY4Rn1JXojxV5wEAjrpG2lVAKmF2p6nXrpIGJ+FI8HyQjN81Dy3gNIL9crNwZdCQUps6S57KCXETjC1PELLHAWIt3nyYWYgfHo0UNZGzcrKc/0LBw3qDrsXNbDFZiiz29zBkweDjjAkdbYtyii+dHeS6nIk0yopIGqq1YRGxKtK4r4E9Id6jLnqNruNFgChZ1HpfqzMEGBFGL6lDY4q";
 
+    /**
+     * {@link #vuforia} is the variable we will use to store our instance of the Vuforia
+     * localization engine.
+     */
+    private VuforiaLocalizer vuforia;
+
+    /**
+     * {@link #tfod} is the variable we will use to store our instance of the Tensor Flow Object
+     * Detection engine.
+     */
+    private TFObjectDetector tfod;
+
+        
     BNO055IMU               imu;
     double                  gTheta; // direction to keep IMU facing during GoDir calls
    
@@ -94,55 +142,69 @@ public class PositionL extends LinearOpMode {
     }
     
     
-        void FirstMotion (int initPos,double scale,double power){
+    void FirstMotion (int initPos,double scale,double power)
+    {
         LowerSelf();
         
-        if(initPos==1)
-        {
-            MoveTimed(power, 0, 4.*scale, true);
-            sleep(500);
-            telemetry.addData("arm", arm.getPosition()); 
-            telemetry.update();
-        }
-        else if(initPos==2)
-        {
-            MoveTimed(power, 0, 1.2*scale, true);
-            sleep(500);
-             MoveTimed(power, 45, 3*scale, true);
-            sleep(500);
-             MoveTimed(power, 135, 4*scale, true);
-            sleep(500);
-            
-            
-            
-        }
-        if(arm.getPosition()<.5)
-        {
-            arm.setPosition(1.0);
-        }
-        else
-        {
-            arm.setPosition(0.0);
-        }
-        sleep(5000);
-        telemetry.update();
+        MoveTimed(power, -90, 1.0*scale, true);
+        sleep(100);
         
-        if(initPos==1)
-        {
-        MoveTimed(power, -90, 3.5*scale, false);
-        sleep(500);   
-        }
-        else if(initPos==2)
-        {
-        MoveTimed(power, 0, 3.5*scale, false);
-        sleep(500); 
-        }
-        }
-       void LowerSelf(){
-           //extend arm 
-           //drive R 4in
-           //retract Arm 
+       MoveTimed(power, 150, 0.5*scale, true);
+        
+       TurnTo( -55, 0.25);
+       
+        //MoveTimed(power, -90, 3.5*scale, false);
+        sleep(500);
+        
+        MoveTimed(power, 30, 0.5*scale, true);
+        int loc = FindGold();
+        telemetry.addData("loc", loc);
+       telemetry.update();
+       
+       TurnTo(120,0.25);
+      gTheta = 120.0;
+        
+        if (loc == 1) {
+            MoveTimed(power*1.5, -70, 2.75*scale, false);
            
+            
+            
+        }
+          if (loc == 2) {
+             MoveTimed(power*1.5, -95, 2.5*scale, false);
+           
+            
+            
+        }
+         if (loc == 3) {
+              MoveTimed(power*1.5, -135, 2.0*scale, false);
+           
+            
+            
+            
+        }
+       
+        
+    }
+     
+    void LowerSelf()
+    {
+         
+        // releqase hook lock
+        hook.setPower(-0.4);
+        hook_lock.setPosition(0.7);
+        sleep(200);    
+        
+        // Lower robot
+        hook.setPower(-0.05);
+        sleep(2300);
+        hook.setPower(0.0);
+        
+        // Raise hook slightly
+        hook.setPower(0.15);
+        sleep(100);
+        hook.setPower(0.0);
+
        }
     
 
@@ -207,7 +269,7 @@ public class PositionL extends LinearOpMode {
            if (delta_theta < -180) delta_theta += 360;
             if (delta_theta > 180) delta_theta -= 360;
             double P = power * gain * delta_theta;
-            if( Math.abs( P ) < 0.08 ) break;
+            if( Math.abs( P ) < 0.1 ) break;
             topDrive.setPower( P );
             leftDrive.setPower( P );
             rightDrive.setPower( P );
@@ -228,22 +290,15 @@ public class PositionL extends LinearOpMode {
         leftDrive  = hardwareMap.get(DcMotor.class, "left");
         rightDrive = hardwareMap.get(DcMotor.class, "right");
         topDrive   = hardwareMap.get(DcMotor.class, "pot");
-        arm        = hardwareMap.get(Servo.class, "arm");
+        //arm        = hardwareMap.get(Servo.class, "arm");
         
-         // get a reference to our digitalTouch object.
-        digitalTouchB = hardwareMap.get(DigitalChannel.class, "hook_stopB");
-
-        // set the digital channel to input.
-        digitalTouchB.setMode(DigitalChannel.Mode.INPUT);
+        hook_stop = hardwareMap.get(DigitalChannel.class, "hook_stop");
+        hook  = hardwareMap.get(DcMotor.class, "hook");
+        hook_lock  = hardwareMap.get(Servo.class, "hook_lock");
+        mascot_launcher  = hardwareMap.get(Servo.class, "mascot_launcher");
         
-        digitalTouchT = hardwareMap.get(DigitalChannel.class, "hook_stopT");
+         hook_stop.setMode(DigitalChannel.Mode.INPUT);
 
-        // set the digital channel to input.
-        digitalTouchT.setMode(DigitalChannel.Mode.INPUT);
-
-        
-        // Most robots need the motor on one side to be reversed to drive forward
-        // Reverse the motor that runs backwards when connected directly to the battery
         leftDrive.setDirection(DcMotor.Direction.FORWARD);
         rightDrive.setDirection(DcMotor.Direction.FORWARD);
         topDrive.setDirection(DcMotor.Direction.FORWARD);
@@ -276,10 +331,60 @@ public class PositionL extends LinearOpMode {
         telemetry.addData("Status", "waiting for start");
         telemetry.addData("imu calib status", imu.getCalibrationStatus().toString());
         telemetry.update();
+        //Remove lock
+        hook_lock.setPosition(0.5);
+        sleep(1500);
+        
+        double t_start = getRuntime();
+        while( hook_stop.getState() == true ){
+        
+            double t_diff = getRuntime() - t_start;
+        
+            if( t_diff > 3 ) break; // only activate motor for 3 seconds max
+            hook.setPower(-0.3);
+        }
+        hook.setPower(0.0);
+        
+        hook_lock.setPosition(0.0);
+        sleep(500);
+        //hook_lock.setPosition(0.5);
+        //sleep(500);
+        //hook_lock.setPosition(0.0);
+        //sleep(500);
+        
+        //small motion to cease rest on the lock
+        t_start = getRuntime();
+        hook.setPower(0.40);
+        sleep(300);
+        hook.setPower(0.0);
+        
+        mascot_launcher.setPosition(0.8);
+        sleep(2000);
+        mascot_launcher.setPosition(1.0);
+        sleep(1000);
+    
+        // Disable servo PWMs to save power
+        ServoImplEx mascotex = hardwareMap.get(ServoImplEx.class, "mascot_launcher");
+        ServoImplEx lockex   = hardwareMap.get(ServoImplEx.class, "hook_lock");
+        mascotex.setPwmDisable();
+        lockex.setPwmDisable();
+           
+        // The TFObjectDetector uses the camera frames from the VuforiaLocalizer, so we create that
+        // first.
+        
+
 
         // Wait for the game to start (driver presses PLAY)
         waitForStart();
+        //initVuforia();
+
+        if (ClassFactory.getInstance().canCreateTFObjectDetector()) {
+         //   initTfod();
+        } else {
+            telemetry.addData("Sorry!", "This device is not compatible with TFOD");
+        }
         runtime.reset(); 
+        
     }
     
     @Override
@@ -288,7 +393,7 @@ public class PositionL extends LinearOpMode {
        TriRobotInit();
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
-            int initPos=2;
+            int initPos=1;
             double scale=1;
             double power = 0.5;
             gTheta = 0.0;
@@ -297,4 +402,133 @@ public class PositionL extends LinearOpMode {
             break;
         }
     }
+            
+     private int FindGold2(){return 3;}
+
+     private int FindGold() {
+        
+        /*
+         * Configure Vuforia by creating a Parameter object, and passing it to the Vuforia engine.
+         */
+     VuforiaLocalizer vuforia;
+
+    /**
+     * {@link #tfod} is the variable we will use to store our instance of the Tensor Flow Object
+     * Detection engine.
+     */
+    TFObjectDetector tfod;
+    
+        VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters();
+
+        parameters.vuforiaLicenseKey = VUFORIA_KEY;
+        parameters.cameraDirection = CameraDirection.BACK;
+
+        //  Instantiate the Vuforia engine
+        vuforia = ClassFactory.getInstance().createVuforia(parameters);
+
+        // Loading trackables is not necessary for the Tensor Flow Object Detection engine.
+    
+
+    /**
+     * Initialize the Tensor Flow Object Detection engine.
+     */
+      if (ClassFactory.getInstance().canCreateTFObjectDetector()) {
+       int tfodMonitorViewId = hardwareMap.appContext.getResources().getIdentifier(
+            "tfodMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+        TFObjectDetector.Parameters tfodParameters = new TFObjectDetector.Parameters(tfodMonitorViewId);
+        tfod = ClassFactory.getInstance().createTFObjectDetector(tfodParameters, vuforia);
+        tfod.loadModelFromAsset(TFOD_MODEL_ASSET, LABEL_GOLD_MINERAL, LABEL_SILVER_MINERAL);
+        tfod.activate();
+        } else {
+            telemetry.addData("Sorry!", "This device is not compatible with TFOD");
+            return 3;
+        }
+
+             int Npos1=0;
+           int Npos2=0;
+            int Npos3=0;
+             int NposSilver1=0;
+           int NposSilver2=0;
+            int NposSilver3=0;
+            double t_start =  getRuntime();
+
+
+     while (opModeIsActive()) {
+                
+                if( (getRuntime() - t_start ) > 3.5) break;
+                if ((Npos1 >=5) ||( Npos2>=5) ||(Npos3>=5))break;
+                if ((NposSilver1>=5) && (NposSilver2>=5))break;
+                if ((NposSilver2>=5) && (NposSilver3>=5))break;
+                if ((NposSilver1>=5) && (NposSilver3>=5))break;
+                if (tfod != null) {
+                    // getUpdatedRecognitions() will return null if no new information is available since
+                    // the last time that call was made.
+                    List<Recognition> updatedRecognitions = tfod.getUpdatedRecognitions();
+                    if (updatedRecognitions != null) {
+                      //telemetry.addData("# Object Detected", updatedRecognitions.size());
+                      //if (updatedRecognitions.size() == 3) {
+                        int goldMineralX = -1;
+                        int silverMineralX = -1;
+                         for (Recognition recognition : updatedRecognitions) {
+                            if (recognition.getLabel().equals(LABEL_GOLD_MINERAL)) {
+                                goldMineralX = (int) recognition.getLeft();
+                                telemetry.addData("gold position", goldMineralX);
+                              if(goldMineralX<300) {
+                                  Npos1++;
+                                telemetry.addData("loc", 1);
+                              }else if(goldMineralX<800){
+                                  Npos2++;
+                                  telemetry.addData("loc", 2);
+                              }else{
+                                  Npos3++;
+                                  telemetry.addData("loc", 3);
+                              }
+                           } 
+                        
+                            if (recognition.getLabel().equals(LABEL_SILVER_MINERAL)) {
+                                silverMineralX = (int) recognition.getLeft();
+                                telemetry.addData("silver position", silverMineralX);
+                              if(silverMineralX<300) {
+                                  NposSilver1++;
+                                telemetry.addData("loc", 1);
+                              }else if(silverMineralX<800){
+                                  NposSilver2++;
+                                  telemetry.addData("loc", 2);
+                              }else{
+                                  NposSilver3++;
+                                  telemetry.addData("loc", 3);
+                              }
+                           } 
+                        }
+                        telemetry.update();
+                    }
+                }
+            }
+
+
+        if (tfod != null) {
+            tfod.shutdown();
+        }
+        
+        
+        
+        telemetry.addData("Npos1", Npos1);
+        telemetry.addData("Npos2", Npos2);
+        telemetry.addData("Npos3", Npos3);
+        telemetry.addData("NposSilver1", NposSilver1);
+        telemetry.addData("NposSilver2", NposSilver2);
+        telemetry.addData("NposSilver3", NposSilver3);
+        telemetry.update();
+        sleep(3000);
+        if (Npos1>=5)return 1;
+        if (Npos2>=5)return 2;
+        if (Npos3>=5)return 3;
+        if (NposSilver1>=5 && NposSilver2>=5)return 3;
+        if (NposSilver2>=5 && NposSilver3>=5)return 1;             
+        if (NposSilver1>=5 && NposSilver3>=5)return 2;
+
+        return 3;
+    }
+    
 }
+
